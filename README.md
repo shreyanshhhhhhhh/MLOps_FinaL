@@ -142,13 +142,14 @@ Two tags are published so that recreate is a real rollback:
 
 Both pickle hashes stay in the DVC remote. The image is built with the `model-v2` lock inside it. `MODEL_VERSION=model-v1` replaces that lock at start and pulls the boosting artifact. `/model-info` reports `model_name` and the metrics from the card that was pulled.
 
-Stop the process and let the restart policy bring it back:
+Stop the container, then start that same container again:
 
 ```bash
 docker kill priceoptima
+docker compose restart
 ```
 
-`restart: unless-stopped` starts it again. `docker compose restart` does the same if you want to force it.
+`docker kill` is a manual stop. The container exits 137 and `unless-stopped` leaves it down, which is what that policy means by "unless stopped". `docker compose restart` starts it again without a rebuild, and the entrypoint pulls the model once more. If the process dies on its own, rather than through the Docker stop API, the policy starts it. `/health` becomes 200 as soon as uvicorn is back, and `/ready` becomes 200 after the pull.
 
 ### Example requests
 
@@ -258,7 +259,7 @@ Copy `.env.example` to `.env` for compose. `.env` is gitignored.
 
 The Dockerfile is two stages, both `python:3.11-slim`. The builder installs `requirements-serve.txt` into a venv. The runtime stage copies that venv, the app, `src/`, `params.yaml`, `dvc.lock`, `.dvc/config`, and the scripts. It installs `git` because a version pin is a `git clone` of a tag. It does not install a compiler, and it does not copy `data/`, `mlruns/`, tests, notebooks, or anything under `models/` except an empty directory. The process runs as `appuser` (uid 1000). The healthcheck calls `/health`, not `/ready`, so a slow pull is not a dead container.
 
-`requirements-serve.txt` is the serving subset of `requirements.txt`: the training pins for pandas, numpy, scikit-learn, lightgbm, and joblib, plus FastAPI, uvicorn, and `dvc[s3]`. MLflow, pytest, and matplotlib stay out of the image. The sklearn and lightgbm pins match the versions that wrote the pickle.
+`requirements-serve.txt` is the serving subset of `requirements.txt`: the training pins for pandas, scikit-learn, lightgbm, and joblib, plus FastAPI, uvicorn, and `dvc[s3]`. MLflow, pytest, and matplotlib stay out of the image. Numpy is `2.4.6` rather than the training pin `2.5.4`, because `2.5.4` publishes no Python 3.11 wheel. The gradient boosting prediction for the sample product is the same value on both pins.
 
 ## What is deliberately not here
 
