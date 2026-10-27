@@ -53,13 +53,13 @@ mlflow ui --backend-store-uri ./mlruns
 
 Open the `priceoptima-demand` experiment and sort by `test_rmse`. The grid in `params.yaml` is 14 runs (linear regression, ridge, random forest, gradient boosting, lightgbm). `make exp` appends another 14 because MLflow keeps history.
 
-If `dvc pull` cannot see the remote (a fresh machine with an empty `../dvc-storage`), put the Kaggle CSV at `data/raw/retail_price.csv`. The md5 in `data/raw/retail_price.csv.dvc` must match. A public copy of the same file is `https://raw.githubusercontent.com/suddhasheel333/retail-price-optimization/main/data/retail_price.csv`.
+If `dvc pull` cannot see the remote (a fresh machine whose sibling `dvc-storage` directory is empty), put the Kaggle CSV at `data/raw/retail_price.csv`. The md5 in `data/raw/retail_price.csv.dvc` must match. A public copy of the same file is `https://raw.githubusercontent.com/suddhasheel333/retail-price-optimization/main/data/retail_price.csv`.
 
 ## DVC remote
 
 `.dvc/config` declares two remotes:
 
-- `local` (default), a folder at `../dvc-storage`. This is the default so `dvc push` works in the lab without cloud keys.
+- `local` (default), the directory `dvc-storage` next to the clone. DVC stores paths relative to `.dvc/config`, so the file contains `../../dvc-storage`. This is the default so `dvc push` works in the lab without cloud keys.
 - `s3`, URL `s3://priceoptima/priceoptima`, ready to become the default.
 
 Credentials never go in `.dvc/config`. Use environment variables or `dvc remote modify --local`, which writes `.dvc/config.local` (gitignored). Switching to S3 or Google Drive is written out in `docs/REGISTRY.md`.
