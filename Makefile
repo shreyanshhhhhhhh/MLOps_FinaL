@@ -25,6 +25,9 @@ exp:
 test:
 	$(PYTHON) -m pytest
 
+pipeline-check:
+	SKIP_DVC_PULL=1 bash scripts/ci_pipeline_check.sh
+
 lint:
 	$(PYTHON) -m ruff check src app tests
 
