@@ -2,8 +2,14 @@
 
 from __future__ import annotations
 
-import pandas as pd
-import pytest
+import os
+
+# The API autoloads models/ when this is unset. Tests inject a dummy model
+# instead, including the case where nothing is loaded.
+os.environ.setdefault("MODEL_AUTOLOAD", "0")
+
+import pandas as pd  # noqa: E402
+import pytest  # noqa: E402
 
 RAW_COLUMNS = [
     "product_id",

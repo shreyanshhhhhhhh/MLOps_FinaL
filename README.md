@@ -1,6 +1,8 @@
 # PriceOptima
 
-Phase 1 of a demand model for dynamic pricing. The model predicts monthly quantity sold (`qty`) from price and context. Phase 2 (not in this repo yet) will search that model for a revenue-maximising price. The point of this phase is reproducibility: one parameter file, a DVC pipeline, and an MLflow sweep that promotes a single artifact.
+PriceOptima predicts monthly quantity sold (`qty`) from price and context, then recommends a revenue-maximising price by scoring that model across a price grid.
+
+Phase 1 is the training system: one parameter file, a DVC pipeline, and an MLflow sweep that promotes a single artifact. Phase 2 is the serving system: a FastAPI process in a container that pulls `models/model.pkl` from the DVC remote at start. The image does not contain the pickle.
 
 The dataset is the Kaggle [Retail Price Optimization](https://www.kaggle.com/datasets/suddharshan/retail-price-optimization) file `retail_price.csv`: 676 product-months, 30 columns, January 2017 through August 2018. The CSV is not in Git. `data/raw/retail_price.csv.dvc` is the pointer.
 
@@ -10,13 +12,17 @@ The dataset is the Kaggle [Retail Price Optimization](https://www.kaggle.com/dat
 data/raw/                retail_price.csv, tracked by DVC
 data/processed/          train/test splits and engineered frames
 src/                     config, preprocess, features, train, evaluate, select_best
+app/                     FastAPI service (health, ready, predict, optimize, metrics)
 models/                  preprocessor.joblib, model.pkl, model_meta.json
 metrics/                 train_runs.json, metrics.json, diagnostic plots
 notebooks/eda.ipynb      EDA only, not part of the pipeline
-tests/                   schema, leakage, feature fixture, grid size
+tests/                   schema, leakage, feature fixture, API
+scripts/                 container entrypoint, model fetch, smoke test
 docs/REGISTRY.md         how a model version is named, promoted, and rolled back
 params.yaml              split, seed, features, hyperparameter grid
 dvc.yaml                 preprocess -> features -> train -> evaluate -> select_best
+Dockerfile               multi-stage image, no model binary
+docker-compose.yml       local run against the DVC remote
 ```
 
 `src/scoring.py` is the only definition of RMSE, MAE, and R². `src/provenance.py` reads the git commit and the raw-data DVC hash so train and select_best stamp the same identity.
@@ -89,6 +95,171 @@ make test
 
 `tests/test_preprocess.py` checks the output columns, dtypes, and that `01-05-2017` is May. `tests/test_leakage.py` checks the year-boundary split, that a test-only qty of 10000 does not widen the train fence, and that the scaler mean is the train price rather than the pooled price. `tests/test_features.py` checks the ratio, the lag change, and the logs on a one-row fixture.
 
+## Serving
+
+```mermaid
+flowchart LR
+  client[Client] --> api[FastAPI in the container]
+  api --> features["src.features.add_engineered_features"]
+  features --> model[model.pkl]
+  entry[entrypoint.sh] --> fetch["dvc pull models/"]
+  fetch --> remote[(DVC remote)]
+  gitTag["MODEL_VERSION git tag"] --> entry
+  remote --> model
+```
+
+The container starts `scripts/fetch_model.sh` and uvicorn together. The fetch retries with backoff. `/health` is 200 as soon as the process is up. `/ready` is 503 until `model.pkl`, `preprocessor.joblib`, and `model_meta.json` have been loaded. A failed pull does not kill the process.
+
+Training and serving call the same functions in `src/features.py`. `add_engineered_features` builds `price_vs_comp`, `price_change`, and the logs. `transform_frame` applies the preprocessor that the features stage fitted on the training months. Serving passes `target_column=None` because quantity is unknown. That skips `log_qty`, which the model never sees anyway. There is no second feature implementation in `app/`.
+
+`MODEL_VERSION` is a git tag or commit (`model-v1`, `model-v2`). When it is set, the entrypoint clones that revision and copies its `dvc.lock` over the one baked into the image, then pulls those hashes. The image is not rebuilt. `.dvc/config` stays the image copy, so the remote URL is not whatever the old commit happened to commit. The pipeline outputs live in `dvc.lock` rather than a second `models/model.pkl.dvc`, because DVC rejects two trackers for the same path.
+
+### Run the container
+
+```bash
+docker build -t priceoptima:phase2 .
+MODEL_VERSION=model-v2 docker compose up -d --no-build
+scripts/smoke_test.sh
+```
+
+`docker compose` publishes port 8000, reads `.env` when that file exists, mounts the DVC remote at `/dvc-storage`, and mounts this repo (including `.git`) at `/opt/src` so `GIT_REPO_URL=file:///opt/src` can see the tags. The mount is not on `/app`, so a host `model.pkl` is not the file the process loads.
+
+Roll the model back without a rebuild:
+
+```bash
+MODEL_VERSION=model-v1 docker compose up -d --no-build --force-recreate
+curl -s http://127.0.0.1:8000/model-info
+```
+
+`docker restart` keeps the environment from the previous create, so a version change has to recreate the container. The image stays `priceoptima:phase2`.
+
+Two tags are published so that recreate is a real rollback:
+
+| Tag | Model | Test RMSE |
+| --- | --- | --- |
+| `model-v1` | gradient boosting, `n_estimators=100`, `learning_rate=0.05`, `max_depth=3` | 7.5348 |
+| `model-v2` | ridge, `alpha=10` | 10.7582 |
+
+Both pickle hashes stay in the DVC remote. The image is built with the `model-v2` lock inside it. `MODEL_VERSION=model-v1` replaces that lock at start and pulls the boosting artifact. `/model-info` reports `model_name` and the metrics from the card that was pulled.
+
+Stop the process and let the restart policy bring it back:
+
+```bash
+docker kill priceoptima
+```
+
+`restart: unless-stopped` starts it again. `docker compose restart` does the same if you want to force it.
+
+### Example requests
+
+Sample product: `bed1`, bed_bath_table, May 2018. The recorded price was 39.99 and the recorded quantity was 19.
+
+```bash
+curl -s http://127.0.0.1:8000/health
+curl -s http://127.0.0.1:8000/ready
+curl -s http://127.0.0.1:8000/model-info
+```
+
+```bash
+curl -s http://127.0.0.1:8000/predict-demand \
+  -H 'content-type: application/json' \
+  -d '{
+    "product_category_name": "bed_bath_table",
+    "unit_price": 39.99,
+    "freight_price": 10.25631579,
+    "product_weight_g": 350,
+    "product_score": 4.0,
+    "weekday": 23,
+    "weekend": 8,
+    "holiday": 3,
+    "month": 5,
+    "year": 2018,
+    "volume": 3800,
+    "s": 10.26739356,
+    "comp_1": 83.64961538,
+    "comp_2": 39.99,
+    "comp_3": 39.99,
+    "ps1": 3.9,
+    "ps2": 4.0,
+    "ps3": 4.0,
+    "fp1": 16.78038462,
+    "fp2": 10.25631579,
+    "fp3": 10.25631579,
+    "lag_price": 39.99,
+    "product_name_lenght": 39,
+    "product_description_lenght": 161,
+    "product_photos_qty": 2
+  }'
+```
+
+On the promoted gradient boosting model this product returns about 7.91, against a recorded quantity of 19:
+
+```json
+{"predicted_qty": 7.9119, "model_output": 7.9119, "unit_price": 39.99}
+```
+
+`predicted_qty` is the model output floored at zero. `model_output` is the raw value. The same call against `model-v2` (ridge) returns a different quantity. That difference is the rollback check.
+
+```bash
+curl -s http://127.0.0.1:8000/optimize-price \
+  -H 'content-type: application/json' \
+  -d '{
+    "product_category_name": "bed_bath_table",
+    "freight_price": 10.25631579,
+    "product_weight_g": 350,
+    "product_score": 4.0,
+    "weekday": 23,
+    "weekend": 8,
+    "holiday": 3,
+    "month": 5,
+    "year": 2018,
+    "volume": 3800,
+    "s": 10.26739356,
+    "comp_1": 83.64961538,
+    "comp_2": 39.99,
+    "comp_3": 39.99,
+    "ps1": 3.9,
+    "ps2": 4.0,
+    "ps3": 4.0,
+    "fp1": 16.78038462,
+    "fp2": 10.25631579,
+    "fp3": 10.25631579,
+    "lag_price": 39.99,
+    "product_name_lenght": 39,
+    "product_description_lenght": 161,
+    "product_photos_qty": 2,
+    "min_price": 20,
+    "max_price": 80,
+    "step": 5,
+    "unit_cost": 15
+  }'
+```
+
+The response includes `best_price` inside `[min_price, max_price]`, `expected_demand`, `expected_revenue`, `expected_profit` when `unit_cost` was sent, `elasticity` (arc elasticity around the chosen price), `log_log_slope`, and `curve` (one point per price). Omit `unit_cost` to maximise revenue instead of profit. A non-positive price, a range with `min_price >= max_price`, or a grid above 500 points returns 422.
+
+`GET /metrics` is Prometheus text: `priceoptima_requests_total`, `priceoptima_request_latency_seconds`, and `priceoptima_predictions_total`. Each request also writes one JSON log line with `request_id`, `endpoint`, `status`, and `latency_ms`.
+
+### Environment
+
+| Variable | Role |
+| --- | --- |
+| `DVC_REMOTE` | Remote name from `.dvc/config`. `local` (default) or `s3` |
+| `DVC_STORAGE_DIR` | Host path compose mounts at `/dvc-storage`. Default `../dvc-storage` |
+| `DVC_STORAGE_URL` | Optional override of the `local` remote URL inside the container |
+| `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_DEFAULT_REGION` | Used only when `DVC_REMOTE=s3`. Leave unset on an instance with an IAM role. Never copied into the image |
+| `MODEL_VERSION` | Git tag or commit whose `dvc.lock` is pulled. Empty uses the lock baked into the image |
+| `GIT_REPO_URL` | Where that revision is cloned from. Compose defaults to `file:///opt/src` |
+| `PORT` | Uvicorn port. Default 8000 |
+| `MODEL_AUTOLOAD` | `1` in the container. Tests set `0` and inject a dummy model |
+
+Copy `.env.example` to `.env` for compose. `.env` is gitignored.
+
+### Image
+
+The Dockerfile is two stages, both `python:3.11-slim`. The builder installs `requirements-serve.txt` into a venv. The runtime stage copies that venv, the app, `src/`, `params.yaml`, `dvc.lock`, `.dvc/config`, and the scripts. It installs `git` because a version pin is a `git clone` of a tag. It does not install a compiler, and it does not copy `data/`, `mlruns/`, tests, notebooks, or anything under `models/` except an empty directory. The process runs as `appuser` (uid 1000). The healthcheck calls `/health`, not `/ready`, so a slow pull is not a dead container.
+
+`requirements-serve.txt` is the serving subset of `requirements.txt`: the training pins for pandas, numpy, scikit-learn, lightgbm, and joblib, plus FastAPI, uvicorn, and `dvc[s3]`. MLflow, pytest, and matplotlib stay out of the image. The sklearn and lightgbm pins match the versions that wrote the pickle.
+
 ## What is deliberately not here
 
-No API, Docker, or CI. Those are later phases.
+No GitHub Actions workflow and no EC2 user-data. `scripts/smoke_test.sh` is the check those later phases can call.

@@ -30,6 +30,22 @@ def test_price_ratio_change_and_logs_on_fixture() -> None:
     assert engineered["log_qty"].iloc[0] == pytest.approx(np.log1p(4.0))
 
 
+def test_inference_path_skips_target_and_keeps_price_features() -> None:
+    frame = pd.DataFrame(
+        {
+            "unit_price": [10.0],
+            "lag_price": [8.0],
+            "comp_1": [8.0],
+            "comp_2": [10.0],
+            "comp_3": [12.0],
+        }
+    )
+    engineered = add_engineered_features(frame, ["comp_1", "comp_2", "comp_3"], target_column=None)
+    assert "log_qty" not in engineered.columns
+    assert engineered["price_vs_comp"].iloc[0] == pytest.approx(1.0)
+    assert engineered["log_unit_price"].iloc[0] == pytest.approx(np.log1p(10.0))
+
+
 def test_non_positive_denominator_becomes_missing() -> None:
     frame = pd.DataFrame(
         {

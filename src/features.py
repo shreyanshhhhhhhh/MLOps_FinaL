@@ -25,20 +25,22 @@ def add_engineered_features(
     *,
     price_column: str = "unit_price",
     lag_column: str = "lag_price",
-    target_column: str = "qty",
+    target_column: str | None = "qty",
 ) -> pd.DataFrame:
     """Add relative-price features and log transforms.
 
-    ``log_qty`` is stored for the Phase 2 elasticity work. It is a transform
-    of the target, so ``excluded_from_model`` keeps it out of X.
+    ``log_qty`` is stored for elasticity work. It is a transform of the
+    target, so ``excluded_from_model`` keeps it out of X. Pass
+    ``target_column=None`` at serving time: quantity is not known yet, and
+    inventing one would be a second feature path. Training always passes
+    ``qty``, so the price features below stay the ones the preprocessor saw.
     Ratios with a non-positive denominator become missing and are imputed
     from the training median later, rather than filled with a magic zero.
     """
-    missing = [
-        column
-        for column in [price_column, lag_column, target_column, *competitor_price_columns]
-        if column not in df.columns
-    ]
+    required = [price_column, lag_column, *competitor_price_columns]
+    if target_column is not None:
+        required.append(target_column)
+    missing = [column for column in required if column not in df.columns]
     if missing:
         raise ValueError(f"feature engineering missing columns: {missing}")
     out = df.copy()
@@ -51,8 +53,9 @@ def add_engineered_features(
     out["price_change"] = (price - lag) / lag.where(lag > 0)
     out["log_unit_price"] = np.log1p(price.clip(lower=0))
     out["log_comp_mean"] = np.log1p(comp_mean.clip(lower=0))
-    target = pd.to_numeric(out[target_column], errors="coerce")
-    out["log_qty"] = np.log1p(target.clip(lower=0))
+    if target_column is not None:
+        target = pd.to_numeric(out[target_column], errors="coerce")
+        out["log_qty"] = np.log1p(target.clip(lower=0))
     return out
 
 
