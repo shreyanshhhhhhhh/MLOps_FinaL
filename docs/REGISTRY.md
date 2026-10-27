@@ -35,6 +35,8 @@ dvc pull
 
 `dvc pull` restores the pickle, the metadata, the preprocessor, and the raw CSV that the lockfile points at. Scoring that checkout uses the old model and the old data hash together. To return to current work, check out the branch again and `dvc pull` or `dvc checkout`.
 
+The serving container does the same thing without a rebuild. Set `MODEL_VERSION` to the tag and restart the container. `scripts/fetch_model.sh` clones that revision, copies its `dvc.lock`, and pulls `models/model.pkl`, `models/model_meta.json`, and `models/preprocessor.joblib`. `GET /model-info` then reports that card.
+
 Do not copy `model.pkl` between machines by hand. The hash in `dvc.lock` is what makes the copy the same object.
 
 ## Remotes

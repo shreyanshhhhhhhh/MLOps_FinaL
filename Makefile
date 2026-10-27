@@ -26,7 +26,10 @@ test:
 	$(PYTHON) -m pytest
 
 lint:
-	$(PYTHON) -m ruff check src tests
+	$(PYTHON) -m ruff check src app tests
+
+serve:
+	MODEL_AUTOLOAD=1 $(PYTHON) -m uvicorn app.main:app --host 0.0.0.0 --port $${PORT:-8000}
 
 dag:
 	$(DVC) dag

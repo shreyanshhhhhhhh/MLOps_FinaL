@@ -1,0 +1,26 @@
+name: priceoptima
+
+services:
+  api:
+    container_name: priceoptima
+    build: .
+    image: priceoptima:phase2
+    ports:
+      - "8000:8000"
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      PORT: "8000"
+      MODEL_AUTOLOAD: "1"
+      MODEL_VERSION: ${MODEL_VERSION:-}
+      GIT_REPO_URL: ${GIT_REPO_URL:-file:///opt/src}
+      DVC_REMOTE: ${DVC_REMOTE:-local}
+    volumes:
+      # Host DVC remote. From this file, ../dvc-storage is /dvc-storage,
+      # which is where .dvc/config's relative URL resolves when WORKDIR is /app.
+      - ${DVC_STORAGE_DIR:-../dvc-storage}:/dvc-storage:ro
+      # Git history for MODEL_VERSION. Not mounted over /app, so a host
+      # model.pkl cannot leak into the image filesystem.
+      - .:/opt/src:ro
+    restart: unless-stopped
