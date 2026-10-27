@@ -308,9 +308,9 @@ stages:
     outs:
     - path: models/model.pkl
       hash: md5
-      md5: 39e2102397c95cc0022aa2a486414d87
-      size: 143096
+      md5: cf8a5fc16b1199e1f61f8fc21ad006e2
+      size: 1993
     - path: models/model_meta.json
       hash: md5
-      md5: 4ab151ef52199dc93a55647c36a97b5b
-      size: 2078
+      md5: c93db9c395c65533e80c943006a8a7b8
+      size: 2000
