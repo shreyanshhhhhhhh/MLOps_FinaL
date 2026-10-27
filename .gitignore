@@ -1,0 +1,30 @@
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.ipynb_checkpoints/
+.mypy_cache/
+
+# Experiment store is local. The promoted model is what DVC tracks.
+mlruns/
+mlartifacts/
+
+# DVC local config and cache. config.local is where credentials would live.
+.dvc/config.local
+.dvc/tmp/
+.dvc/cache/
+
+# Raw CSV is versioned by DVC. Keep the .dvc pointer.
+data/raw/*.csv
+data/processed/*
+!data/processed/.gitkeep
+
+# Model binaries and metadata are DVC outputs, not Git objects.
+models/*
+!models/.gitkeep
+
+# Plots and metric files are pipeline outputs.
+metrics/*
+!metrics/.gitkeep

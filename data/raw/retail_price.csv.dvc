@@ -1,0 +1,5 @@
+outs:
+- md5: 5454d554903e23994b7cf84dc279577e
+  size: 121403
+  hash: md5
+  path: retail_price.csv

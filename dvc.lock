@@ -1,0 +1,316 @@
+schema: '2.0'
+stages:
+  preprocess:
+    cmd: python -m src.preprocess
+    deps:
+    - path: data/raw/retail_price.csv
+      hash: md5
+      md5: 5454d554903e23994b7cf84dc279577e
+      size: 121403
+    - path: src/config.py
+      hash: md5
+      md5: c2f9771dd50184416c3f311f48140545
+      size: 1649
+    - path: src/preprocess.py
+      hash: md5
+      md5: e8b130b98e44cc9bba650cfe2d8f10cf
+      size: 7637
+    - path: src/provenance.py
+      hash: md5
+      md5: d990816b10e78fa812ce4794a18279bb
+      size: 2468
+    params:
+      params.yaml:
+        paths.processed_dir: data/processed
+        paths.raw_csv: data/raw/retail_price.csv
+        preprocess:
+          date_column: month_year
+          date_format: '%d-%m-%Y'
+          target: qty
+          outlier_columns:
+          - qty
+          - unit_price
+          - freight_price
+          - lag_price
+          iqr_factor: 1.5
+        seed: 42
+        split:
+          test_size: 0.2
+          strategy: chronological
+    outs:
+    - path: data/processed/preprocess_meta.json
+      hash: md5
+      md5: b93e43482ed95bb894b4477edaa87417
+      size: 1170
+    - path: data/processed/test.csv
+      hash: md5
+      md5: c1d8429b49879a58f6cdf1a87b32334f
+      size: 29502
+    - path: data/processed/train.csv
+      hash: md5
+      md5: 53582ba792f3299a76df9f4968eee586
+      size: 95297
+  features:
+    cmd: python -m src.features
+    deps:
+    - path: data/processed/test.csv
+      hash: md5
+      md5: c1d8429b49879a58f6cdf1a87b32334f
+      size: 29502
+    - path: data/processed/train.csv
+      hash: md5
+      md5: 53582ba792f3299a76df9f4968eee586
+      size: 95297
+    - path: src/config.py
+      hash: md5
+      md5: c2f9771dd50184416c3f311f48140545
+      size: 1649
+    - path: src/features.py
+      hash: md5
+      md5: 48dd4b72e53a05effa2692328c92f237
+      size: 6615
+    - path: src/provenance.py
+      hash: md5
+      md5: d990816b10e78fa812ce4794a18279bb
+      size: 2468
+    params:
+      params.yaml:
+        features:
+          target: qty
+          price_column: unit_price
+          lag_column: lag_price
+          competitor_price_columns:
+          - comp_1
+          - comp_2
+          - comp_3
+          categorical:
+          - product_category_name
+          base_numeric:
+          - unit_price
+          - freight_price
+          - product_weight_g
+          - product_score
+          - weekday
+          - weekend
+          - holiday
+          - month
+          - year
+          - volume
+          - s
+          - comp_1
+          - comp_2
+          - comp_3
+          - ps1
+          - ps2
+          - ps3
+          - fp1
+          - fp2
+          - fp3
+          - lag_price
+          - product_name_lenght
+          - product_description_lenght
+          - product_photos_qty
+          engineered_numeric:
+          - comp_mean_price
+          - price_vs_comp
+          - price_change
+          - log_unit_price
+          - log_comp_mean
+          excluded_from_model:
+          - product_id
+          - month_year
+          - total_price
+          - customers
+          - qty
+          - log_qty
+        paths.models_dir: models
+        paths.processed_dir: data/processed
+    outs:
+    - path: data/processed/test_features.csv
+      hash: md5
+      md5: 9729c7448850d41a393f7f1af5da687a
+      size: 46098
+    - path: data/processed/train_features.csv
+      hash: md5
+      md5: b691fd7e7c49f6495c4356642cf551de
+      size: 146627
+    - path: models/preprocessor.joblib
+      hash: md5
+      md5: a40dc935aa6b60fda23d172510f7f21f
+      size: 6343
+  train:
+    cmd: python -m src.train
+    deps:
+    - path: data/processed/test_features.csv
+      hash: md5
+      md5: 9729c7448850d41a393f7f1af5da687a
+      size: 46098
+    - path: data/processed/train_features.csv
+      hash: md5
+      md5: b691fd7e7c49f6495c4356642cf551de
+      size: 146627
+    - path: models/preprocessor.joblib
+      hash: md5
+      md5: a40dc935aa6b60fda23d172510f7f21f
+      size: 6343
+    - path: src/config.py
+      hash: md5
+      md5: c2f9771dd50184416c3f311f48140545
+      size: 1649
+    - path: src/provenance.py
+      hash: md5
+      md5: d990816b10e78fa812ce4794a18279bb
+      size: 2468
+    - path: src/scoring.py
+      hash: md5
+      md5: 048a8d49bd100ecede53e303c31d8432
+      size: 803
+    - path: src/train.py
+      hash: md5
+      md5: 841a81393343b3edaffb67b6ab7a5892
+      size: 9032
+    params:
+      params.yaml:
+        features.target: qty
+        models:
+          linear_regression:
+            fit_intercept:
+            - true
+          ridge:
+            alpha:
+            - 0.1
+            - 1.0
+            - 10.0
+          random_forest:
+            n_estimators:
+            - 100
+            - 200
+            max_depth:
+            - 8
+            - 16
+          gradient_boosting:
+            n_estimators:
+            - 100
+            learning_rate:
+            - 0.05
+            - 0.1
+            max_depth:
+            - 3
+          lightgbm:
+            n_estimators:
+            - 100
+            learning_rate:
+            - 0.05
+            - 0.1
+            num_leaves:
+            - 31
+            - 63
+        paths:
+          raw_csv: data/raw/retail_price.csv
+          processed_dir: data/processed
+          models_dir: models
+          metrics_dir: metrics
+          dvc_file: data/raw/retail_price.csv.dvc
+        seed: 42
+        tracking:
+          tracking_uri: mlruns
+          experiment_name: priceoptima-demand
+    outs:
+    - path: metrics/eval_bundle.joblib
+      hash: md5
+      md5: c17ee8e37afd4f727a33cdf2607df7ae
+      size: 52902
+    - path: metrics/train_runs.json
+      hash: md5
+      md5: 5fe5ded8d02805240f99c9b9ac4baee6
+      size: 8055
+  evaluate:
+    cmd: python -m src.evaluate
+    deps:
+    - path: metrics/eval_bundle.joblib
+      hash: md5
+      md5: c17ee8e37afd4f727a33cdf2607df7ae
+      size: 52902
+    - path: metrics/train_runs.json
+      hash: md5
+      md5: 5fe5ded8d02805240f99c9b9ac4baee6
+      size: 8055
+    - path: src/config.py
+      hash: md5
+      md5: c2f9771dd50184416c3f311f48140545
+      size: 1649
+    - path: src/evaluate.py
+      hash: md5
+      md5: 0c0bdfa15b8f244d1147399577472763
+      size: 4450
+    - path: src/provenance.py
+      hash: md5
+      md5: d990816b10e78fa812ce4794a18279bb
+      size: 2468
+    - path: src/scoring.py
+      hash: md5
+      md5: 048a8d49bd100ecede53e303c31d8432
+      size: 803
+    params:
+      params.yaml:
+        paths:
+          raw_csv: data/raw/retail_price.csv
+          processed_dir: data/processed
+          models_dir: models
+          metrics_dir: metrics
+          dvc_file: data/raw/retail_price.csv.dvc
+        tracking:
+          tracking_uri: mlruns
+          experiment_name: priceoptima-demand
+    outs:
+    - path: metrics/metrics.json
+      hash: md5
+      md5: 9df886c637e9c10ccb2b67f92a04815e
+      size: 6928
+    - path: metrics/pred_vs_actual.png
+      hash: md5
+      md5: 0f444754f2a13f971a94bdcbbbb047c5
+      size: 69791
+    - path: metrics/residuals.png
+      hash: md5
+      md5: 9c7183d1cfa590085b483a29a45a58c1
+      size: 56723
+  select_best:
+    cmd: python -m src.select_best
+    deps:
+    - path: metrics/metrics.json
+      hash: md5
+      md5: 9df886c637e9c10ccb2b67f92a04815e
+      size: 6928
+    - path: src/config.py
+      hash: md5
+      md5: c2f9771dd50184416c3f311f48140545
+      size: 1649
+    - path: src/provenance.py
+      hash: md5
+      md5: d990816b10e78fa812ce4794a18279bb
+      size: 2468
+    - path: src/select_best.py
+      hash: md5
+      md5: e6bf07664cc45c538f6e3db6837cf6c6
+      size: 5004
+    params:
+      params.yaml:
+        paths:
+          raw_csv: data/raw/retail_price.csv
+          processed_dir: data/processed
+          models_dir: models
+          metrics_dir: metrics
+          dvc_file: data/raw/retail_price.csv.dvc
+        tracking:
+          tracking_uri: mlruns
+          experiment_name: priceoptima-demand
+    outs:
+    - path: models/model.pkl
+      hash: md5
+      md5: ecf8fbb1a39bb443a0ced4b45efb52ec
+      size: 143096
+    - path: models/model_meta.json
+      hash: md5
+      md5: a714877e74b3b11f017643c7d2c5938e
+      size: 2077

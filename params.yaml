@@ -1,0 +1,105 @@
+# Single source of truth for the PriceOptima Phase 1 pipeline.
+# Change a value here, then `dvc repro` only reruns stages that depend on it.
+
+seed: 42
+
+paths:
+  raw_csv: data/raw/retail_price.csv
+  processed_dir: data/processed
+  models_dir: models
+  metrics_dir: metrics
+  dvc_file: data/raw/retail_price.csv.dvc
+
+tracking:
+  # Relative path so `mlflow ui` from the repo root opens this store.
+  tracking_uri: mlruns
+  experiment_name: priceoptima-demand
+
+split:
+  test_size: 0.2
+  # Last fraction of distinct months. The seed does not shuffle this split.
+  strategy: chronological
+
+preprocess:
+  date_column: month_year
+  # The CSV stores the first of the month as day-month-year (01-05-2017 = May 2017).
+  date_format: "%d-%m-%Y"
+  target: qty
+  outlier_columns:
+    - qty
+    - unit_price
+    - freight_price
+    - lag_price
+  iqr_factor: 1.5
+
+features:
+  target: qty
+  price_column: unit_price
+  lag_column: lag_price
+  competitor_price_columns:
+    - comp_1
+    - comp_2
+    - comp_3
+  categorical:
+    - product_category_name
+  base_numeric:
+    - unit_price
+    - freight_price
+    - product_weight_g
+    - product_score
+    - weekday
+    - weekend
+    - holiday
+    - month
+    - year
+    - volume
+    - s
+    - comp_1
+    - comp_2
+    - comp_3
+    - ps1
+    - ps2
+    - ps3
+    - fp1
+    - fp2
+    - fp3
+    - lag_price
+    - product_name_lenght
+    - product_description_lenght
+    - product_photos_qty
+  engineered_numeric:
+    - comp_mean_price
+    - price_vs_comp
+    - price_change
+    - log_unit_price
+    - log_comp_mean
+  # Kept in the processed files for audit, never passed to a model.
+  # total_price is revenue (closely qty * unit_price). customers is the
+  # buyer count from the same product-month as qty. log_qty is a transform
+  # of the target, materialised for the elasticity work in Phase 2.
+  excluded_from_model:
+    - product_id
+    - month_year
+    - total_price
+    - customers
+    - qty
+    - log_qty
+
+# Cartesian product within each family. This grid is 14 runs
+# (1 + 3 + 4 + 2 + 4), above the 12-run floor.
+models:
+  linear_regression:
+    fit_intercept: [true]
+  ridge:
+    alpha: [0.1, 1.0, 10.0]
+  random_forest:
+    n_estimators: [100, 200]
+    max_depth: [8, 16]
+  gradient_boosting:
+    n_estimators: [100]
+    learning_rate: [0.05, 0.1]
+    max_depth: [3]
+  lightgbm:
+    n_estimators: [100]
+    learning_rate: [0.05, 0.1]
+    num_leaves: [31, 63]
