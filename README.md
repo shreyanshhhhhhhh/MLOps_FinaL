@@ -44,12 +44,14 @@ dvc push
 | `make dag` | `dvc dag` |
 | `make push` | `dvc push` to the default remote |
 
-Inspect the sweep. MLflow 3.17 keeps the directory store behind an opt-in:
+Inspect the sweep. MLflow 3.17 keeps the directory store behind an opt-in, and the UI opens on the Traces tab:
 
 ```bash
 export MLFLOW_ALLOW_FILE_STORE=true
 mlflow ui --backend-store-uri ./mlruns
 ```
+
+Open experiment `priceoptima-demand`, switch the top toggle to **Model training**, then **Training runs**. Sort by `test_rmse`. The metric is logged on every run; the default column set is created-time, so add `test_rmse` from the Columns menu if it is not already on screen.
 
 Open the `priceoptima-demand` experiment and sort by `test_rmse`. The grid in `params.yaml` is 14 runs (linear regression, ridge, random forest, gradient boosting, lightgbm). `make exp` appends another 14 because MLflow keeps history.
 
