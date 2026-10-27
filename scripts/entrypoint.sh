@@ -3,7 +3,7 @@
 # the background; /ready stays 503 until the files are on disk and loaded.
 set -u
 
-cd /app
+cd /app || exit 1
 export DVC_NO_ANALYTICS=1
 export PYTHONUNBUFFERED=1
 export HOME="${HOME:-/home/appuser}"

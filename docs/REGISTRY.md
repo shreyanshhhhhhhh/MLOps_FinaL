@@ -37,6 +37,8 @@ dvc pull
 
 The serving container does the same thing without a rebuild. Set `MODEL_VERSION` to the tag and restart the container. `scripts/fetch_model.sh` clones that revision, copies its `dvc.lock`, and pulls `models/model.pkl`, `models/model_meta.json`, and `models/preprocessor.joblib`. `GET /model-info` then reports that card.
 
+On the EC2 host, `scripts/roll_model.sh` does that restart with the image that is already running. The **Model release** workflow runs the same script after a manual approval. A code deploy does not change the pin.
+
 Do not copy `model.pkl` between machines by hand. The hash in `dvc.lock` is what makes the copy the same object.
 
 ## Remotes

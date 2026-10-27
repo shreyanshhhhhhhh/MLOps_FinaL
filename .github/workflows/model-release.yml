@@ -1,0 +1,78 @@
+# Roll a model version that is already in the DVC remote.
+# The image on the host stays the one recorded in /opt/priceoptima/current.env.
+name: Model release
+
+on:
+  workflow_dispatch:
+    inputs:
+      model_version:
+        description: Git tag or commit of the model lock, for example model-v1
+        required: true
+        type: string
+
+concurrency:
+  group: model-release-production
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  release:
+    name: release
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - name: Restart the container with the requested model
+        env:
+          MODEL_VERSION: ${{ inputs.model_version }}
+        # appleboy/ssh-action v1.2.5
+        uses: appleboy/ssh-action@0ff4204d59e8e51228ff73bce53f80d53301dee2
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          fingerprint: ${{ secrets.EC2_SSH_FINGERPRINT }}
+          command_timeout: 20m
+          envs: MODEL_VERSION
+          script: |
+            set -eu
+            cd /opt/priceoptima/src
+            git fetch origin
+            git checkout --force origin/main
+            MODEL_VERSION="$MODEL_VERSION" bash scripts/roll_model.sh "$MODEL_VERSION"
+
+      - name: Verify /model-info reports that version
+        env:
+          HOST: ${{ secrets.EC2_HOST }}
+          MODEL_VERSION: ${{ inputs.model_version }}
+        run: |
+          set -eu
+          deadline=$((SECONDS + 120))
+          while [ "$SECONDS" -lt "$deadline" ]; do
+            if curl -fsS "http://${HOST}:8000/ready" >/dev/null \
+              && curl -fsS "http://${HOST}:8000/model-info" -o /tmp/model-info.json; then
+              python3 -c 'import json,os,sys; info=json.load(open("/tmp/model-info.json")); expected=os.environ["MODEL_VERSION"]; got=info.get("model_version"); print(info.get("model_name"), got); sys.exit(0 if got==expected else 1)'
+              exit 0
+            fi
+            sleep 5
+          done
+          echo "model version did not become ready within 120s" >&2
+          exit 1
+
+      - name: Roll the model back if verification failed
+        if: failure()
+        uses: appleboy/ssh-action@0ff4204d59e8e51228ff73bce53f80d53301dee2
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          fingerprint: ${{ secrets.EC2_SSH_FINGERPRINT }}
+          command_timeout: 20m
+          script: |
+            set -eu
+            image="$(sed -n 's/^image=//p' /opt/priceoptima/previous.env | head -1)"
+            version="$(sed -n 's/^model_version=//p' /opt/priceoptima/previous.env | head -1)"
+            test -n "$image"
+            cd /opt/priceoptima/src
+            MODEL_VERSION="$version" bash scripts/deploy.sh "$image"

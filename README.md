@@ -1,8 +1,11 @@
 # PriceOptima
 
+[![CI](https://github.com/shreyanshhhhhhhh/MLOps_FinaL/actions/workflows/ci.yml/badge.svg)](https://github.com/shreyanshhhhhhhh/MLOps_FinaL/actions/workflows/ci.yml)
+[![CD](https://github.com/shreyanshhhhhhhh/MLOps_FinaL/actions/workflows/cd.yml/badge.svg)](https://github.com/shreyanshhhhhhhh/MLOps_FinaL/actions/workflows/cd.yml)
+
 PriceOptima predicts monthly quantity sold (`qty`) from price and context, then recommends a revenue-maximising price by scoring that model across a price grid.
 
-Phase 1 is the training system: one parameter file, a DVC pipeline, and an MLflow sweep that promotes a single artifact. Phase 2 is the serving system: a FastAPI process in a container that pulls `models/model.pkl` from the DVC remote at start. The image does not contain the pickle.
+Phase 1 is the training system: one parameter file, a DVC pipeline, and an MLflow sweep that promotes a single artifact. Phase 2 is the serving system: a FastAPI process in a container that pulls `models/model.pkl` from the DVC remote at start. The image does not contain the pickle. Phase 3 is the release path: GitHub Actions builds that image, a registry stores it, and an EC2 host runs it.
 
 The dataset is the Kaggle [Retail Price Optimization](https://www.kaggle.com/datasets/suddharshan/retail-price-optimization) file `retail_price.csv`: 676 product-months, 30 columns, January 2017 through August 2018. The CSV is not in Git. `data/raw/retail_price.csv.dvc` is the pointer.
 
@@ -17,8 +20,12 @@ models/                  preprocessor.joblib, model.pkl, model_meta.json
 metrics/                 train_runs.json, metrics.json, diagnostic plots
 notebooks/eda.ipynb      EDA only, not part of the pipeline
 tests/                   schema, leakage, feature fixture, API
-scripts/                 container entrypoint, model fetch, smoke test
+scripts/                 entrypoint, model fetch, smoke test, deploy, bootstrap
+.github/workflows/       CI, CD, and the manual model release
 docs/REGISTRY.md         how a model version is named, promoted, and rolled back
+docs/EC2_SETUP.md        instance, IAM, security group, swap, reboot test
+docs/RUNBOOK.md          deploy, roll back, logs, secret rotation
+docs/SECRETS.md          every GitHub secret and where it is used
 params.yaml              split, seed, features, hyperparameter grid
 dvc.yaml                 preprocess -> features -> train -> evaluate -> select_best
 Dockerfile               multi-stage image, no model binary
@@ -46,7 +53,8 @@ dvc push
 | `make repro` | `dvc repro`. The second run skips stages whose deps and params did not change |
 | `make exp` | Force `train`, `evaluate`, and `select_best`, so the sweep always logs new MLflow runs |
 | `make test` | `pytest` |
-| `make lint` | `ruff check src tests` |
+| `make lint` | `ruff check src app tests` |
+| `make pipeline-check` | `dvc status` and `dvc repro --dry` against the committed lock |
 | `make dag` | `dvc dag` |
 | `make push` | `dvc push` to the default remote |
 
@@ -261,6 +269,80 @@ The Dockerfile is two stages, both `python:3.11-slim`. The builder installs `req
 
 `requirements-serve.txt` is the serving subset of `requirements.txt`: the training pins for pandas, scikit-learn, lightgbm, and joblib, plus FastAPI, uvicorn, and `dvc[s3]`. MLflow, pytest, and matplotlib stay out of the image. Numpy is `2.4.6` rather than the training pin `2.5.4`, because `2.5.4` publishes no Python 3.11 wheel. The gradient boosting prediction for the sample product is the same value on both pins.
 
-## What is deliberately not here
+## Release
 
-No GitHub Actions workflow and no EC2 user-data. `scripts/smoke_test.sh` is the check those later phases can call.
+```mermaid
+flowchart LR
+  push[Git push] --> ci[GitHub Actions CI]
+  ci --> cd[GitHub Actions CD]
+  cd --> hub[Docker Hub]
+  hub --> ec2[EC2 docker pull]
+  ec2 --> container[Container]
+  remote[(S3 DVC remote)] --> container
+  container --> api[FastAPI]
+  client[Client] --> api
+```
+
+| Diagram box | What implements it |
+| --- | --- |
+| Git push | This repository. CI is `.github/workflows/ci.yml`. It runs on pull requests and pushes |
+| GitHub Actions CI | `lint`, then `test` (pytest report and coverage uploaded), then `pipeline-check` (`scripts/ci_pipeline_check.sh`), then `build` |
+| GitHub Actions CD | `.github/workflows/cd.yml`. It starts after CI succeeds on `main` or a `v*` tag. The `production` environment can require a reviewer |
+| Docker Hub | `cd.yml` pushes `<user>/priceoptima:<short-sha>`, `:latest`, and `:<semver>` when the commit is tagged `v*`. The ECR and OIDC alternative is commented in that file |
+| EC2 docker pull | `scripts/deploy.sh` on the host. `scripts/ec2_bootstrap.sh` installs Docker and the 1 GB swap |
+| Container | `Dockerfile`. `scripts/entrypoint.sh` starts uvicorn even when the pull has not finished |
+| S3 DVC remote | `.dvc/config` remote `s3`. `scripts/fetch_model.sh` runs `dvc pull`. The instance role is the credential. The policy is in `docs/EC2_SETUP.md` |
+| FastAPI | `app/main.py`. `/health` is liveness. `/ready` is the model |
+| Client | `scripts/smoke_test.sh` in CD, before the image is pushed, and `curl` of the public `/ready` and `/model-info` after deploy |
+| Restart policy | `docker run --restart unless-stopped` in `deploy.sh`. Docker is enabled at boot by the bootstrap |
+| Model without a rebuild | `.github/workflows/model-release.yml` runs `scripts/roll_model.sh` |
+
+### End-to-end test
+
+Do the console steps in `docs/EC2_SETUP.md` and `docs/SECRETS.md` first, including `dvc push -r s3` and the `production` reviewers. Then:
+
+1. On a branch, change a comment in `README.md` or a log string in `app/main.py`.
+2. Open a pull request. CI must be green: lint, test, pipeline-check, build. The pytest artifact is named `pytest-report`.
+3. Merge to `main`.
+4. Open **Actions**. CI runs again. When it is green, CD starts. Approve the `production` environment when GitHub asks.
+5. In Docker Hub, the repository `<user>/priceoptima` has the new short SHA and `latest`.
+6. On the instance: `docker ps` shows that tag. `curl -fsS http://127.0.0.1:8000/ready` is 200. `curl -fsS http://127.0.0.1:8000/model-info` shows the model pin you left in place.
+7. From your laptop, the same two URLs on port 8000 of the public host succeed.
+8. Roll the model: **Actions** → **Model release** → input `model-v1` → approve. `/model-info` shows `gradient_boosting` and `model_version` `model-v1`. Run it again with `model-v2` for ridge. The image id does not change. `docker inspect -f '{{.Config.Image}}' priceoptima` is the check.
+9. Reboot with the commands in `docs/EC2_SETUP.md`. The container is back without another deploy.
+10. Stop the instance when the demo is over.
+
+A broken image is rejected by `scripts/deploy.sh` before CD can call the public URL. The local proof is `bash tests/test_deploy.sh`: a container that returns 503 is removed and the previous image is started, and `deploy_result` says `rolled_back`.
+
+### Demo script
+
+About six minutes, in this order.
+
+1. Show the diagram above and the table. One sentence each: Git stores the lock, DVC stores the bytes, the image stores neither the pickle nor a key.
+2. Open `dvc.lock` at `models/model.pkl` and `Dockerfile`. The runtime stage copies the lock and not the pickle.
+3. Open `.github/workflows/ci.yml`. Point at `needs`: lint, then test, then the lock check, then the image build. Mention the concurrency group.
+4. Open `.github/workflows/cd.yml`. The smoke test and the critical Trivy scan run before `push: true`. High findings are an artifact, not a failure.
+5. Open `scripts/deploy.sh`. Pull happens before the old container is removed. `/ready` has 120 seconds. Failure starts `previous.env`.
+6. Curl `/ready` and `/model-info` on the instance. Then show `docker inspect -f '{{.HostConfig.RestartPolicy.Name}}'` and one `docker logs` line with `request_id`.
+7. Close on the model workflow: same image, different `MODEL_VERSION`, different card. Stop the instance so the account does not keep the charge.
+
+### Viva
+
+**Why DVC instead of Git for the model?** Git is the history of the code and of `dvc.lock`. The pickle is a large binary that changes on every promotion. DVC stores it by hash in S3 and the lock names the hash. A tag such as `model-v1` selects a lock. Two machines with that tag and a `dvc pull` get the same bytes.
+
+**Why fetch the model at container start?** The image is the code. The model is data with its own version. Baking the pickle into a layer would make every promotion a rebuild, and the old bytes would remain in the image history. `MODEL_VERSION` swaps the lock and pulls. The same image can serve `model-v1` or `model-v2`.
+
+**Why CI/CD?** A pull request runs the same lint, tests, lock check, and image build that a release uses. CD adds the smoke test, the vulnerability gate, the registry, and the host. The `production` environment is the manual approval. A failed `/ready` rolls back to the previous tag instead of leaving the new container up.
+
+**What does the restart policy do?** `--restart unless-stopped` tells Docker to start the container when the daemon starts and when the process exits. Bootstrap enables Docker at boot, so a `sudo reboot` brings the API back. `docker kill` is a manual stop. The container stays exited until `docker start` or a new deploy. `docker inspect` shows the policy name and `RestartCount`.
+
+**How is reproducibility guaranteed?** `params.yaml` is the training config. `dvc.lock` hashes the code, the data, and the outputs. `model_meta.json` records the git commit, the data hash, and the metrics. The serving image pins the libraries that load the pickle. CI refuses a branch whose lock does not match `dvc status` and `dvc repro --dry`. The deployed tag is the short git SHA, so the running image points at a commit.
+
+**How is training/serving skew prevented?** `app/model_loader.py` calls `add_engineered_features` and `transform_frame` from `src/features.py`. Those are the functions the features stage runs. Serving passes `target_column=None` so `log_qty` is not invented. The request then goes through the preprocessor bundle that was fitted on the training months. There is no second feature implementation under `app/`.
+
+## Future work
+
+- **Evidently drift monitoring.** Log the scored frame and compare it with the training distribution on a schedule. Alert when `price_vs_comp` or `qty` residuals move, and keep that job off the request path.
+- **Scheduled retraining.** A workflow on a calendar trigger runs `dvc repro`, compares test RMSE with the promoted card, and opens a pull request with the new `dvc.lock` instead of pushing a model from the laptop.
+- **Canary deployment.** Run the new SHA beside the current container and send a small share of traffic to it. Promote only after `/ready` and the error rate stay inside a bound. The rollback in `deploy.sh` is the all-or-nothing version of that gate.
+- **Kubernetes.** The same image, the same `/health` and `/ready` probes, and a secret or an IRSA role instead of the EC2 instance profile. The model pull stays in the entrypoint. A rollout replaces the deployment. It does not put the pickle in the image.

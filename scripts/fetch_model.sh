@@ -4,7 +4,7 @@
 # A failure here retries. It does not exit the container.
 set -u
 
-cd /app
+cd /app || exit 1
 
 log() {
     printf '%s\n' "$*"
