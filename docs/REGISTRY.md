@@ -43,7 +43,7 @@ Do not copy `model.pkl` between machines by hand. The hash in `dvc.lock` is what
 
 ## Remotes
 
-The committed default remote is a local directory, `../dvc-storage`, so `dvc push` and `dvc pull` work in the lab without cloud credentials. An S3 remote named `s3` is declared but not selected. Credentials never go in `.dvc/config`. `dvc init` gitignores `.dvc/config.local`, and that is the only place `dvc remote modify --local` writes.
+The committed default remote is the directory `dvc-storage` inside the clone (`.dvc/config` stores `../dvc-storage`). `dvc push` and `dvc pull` work in the lab without cloud credentials, and GitHub Actions uses the same directory when AWS secrets are unset. An S3 remote named `s3` is declared but not selected. Credentials never go in `.dvc/config`. `dvc init` gitignores `.dvc/config.local`, and that is the only place `dvc remote modify --local` writes.
 
 Switch the lab remote to S3:
 

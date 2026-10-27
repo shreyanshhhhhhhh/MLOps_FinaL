@@ -83,14 +83,14 @@ jobs:
     name: pipeline-check
     runs-on: ubuntu-latest
     needs: test
-    # OIDC for the preferred role path. Access keys are the lab fallback.
+    # OIDC or access keys select the s3 remote. With neither secret set,
+    # the job pulls the committed dvc-storage directory and still checks the lock.
     permissions:
       contents: read
       actions: write
       id-token: write
     env:
       DVC_NO_ANALYTICS: "1"
-      DVC_REMOTE: s3
       AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
       AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
       AWS_DEFAULT_REGION: ${{ secrets.AWS_DEFAULT_REGION }}
@@ -124,8 +124,8 @@ jobs:
           elif [ -n "$KEY" ]; then
             echo "mode=keys" >> "$GITHUB_OUTPUT"
           else
-            echo "Add AWS_ROLE_ARN, or AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY." >&2
-            exit 1
+            echo "mode=local" >> "$GITHUB_OUTPUT"
+            echo "No AWS secrets. Pulling the committed local remote."
           fi
 
       - name: Assume the CI role
@@ -138,8 +138,18 @@ jobs:
 
       - name: Pull and compare the lock
         # Key mode uses the env vars above. OIDC mode replaces them in this step.
+        # Local mode drops those vars so an empty key cannot redirect the pull.
         # The script fails unless `dvc status` and `dvc repro --dry` are clean.
-        run: bash scripts/ci_pipeline_check.sh
+        run: |
+          mode="${{ steps.auth.outputs.mode }}"
+          if [ "$mode" = "local" ]; then
+            unset AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY AWS_DEFAULT_REGION
+            export DVC_REMOTE=local
+          else
+            export DVC_REMOTE=s3
+          fi
+          echo "pipeline-check remote=${DVC_REMOTE}"
+          bash scripts/ci_pipeline_check.sh
 
   build:
     name: build

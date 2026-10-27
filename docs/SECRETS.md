@@ -24,7 +24,7 @@ Create each secret in the repository, not in the workflow file.
 | `AWS_SECRET_ACCESS_KEY` | Same as the access key id | The secret half of that key |
 | `AWS_DEFAULT_REGION` | CI, the CD smoke test, and the region string in `.env.prod` if you want them to match | Region of the bucket, for example `ap-south-1` |
 
-`AWS_ROLE_ARN` and the access-key pair are alternatives. Set the role, or set both key secrets. CI fails closed when neither is present, because `dvc pull` would otherwise look at an empty credential and the check would be meaningless.
+`AWS_ROLE_ARN` and the access-key pair are alternatives. Set the role, or set both key secrets, when CI should `dvc pull` from S3. When neither is present, `pipeline-check` pulls the committed `dvc-storage/` directory and still requires `dvc status` and `dvc repro --dry` to report that the lock is up to date. CD and the EC2 host still expect S3 once you deploy there.
 
 The production environment is a second gate. It is not a secret.
 
