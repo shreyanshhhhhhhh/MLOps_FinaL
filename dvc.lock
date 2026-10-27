@@ -222,7 +222,7 @@ stages:
       size: 52902
     - path: metrics/train_runs.json
       hash: md5
-      md5: 5fe5ded8d02805240f99c9b9ac4baee6
+      md5: e6f6986ed8165e7355abae9dfc939efd
       size: 8055
   evaluate:
     cmd: python -m src.evaluate
@@ -233,7 +233,7 @@ stages:
       size: 52902
     - path: metrics/train_runs.json
       hash: md5
-      md5: 5fe5ded8d02805240f99c9b9ac4baee6
+      md5: e6f6986ed8165e7355abae9dfc939efd
       size: 8055
     - path: src/config.py
       hash: md5
@@ -265,7 +265,7 @@ stages:
     outs:
     - path: metrics/metrics.json
       hash: md5
-      md5: 9df886c637e9c10ccb2b67f92a04815e
+      md5: 741cad93d9d941e661bdef99b59ed000
       size: 6928
     - path: metrics/pred_vs_actual.png
       hash: md5
@@ -280,7 +280,7 @@ stages:
     deps:
     - path: metrics/metrics.json
       hash: md5
-      md5: 9df886c637e9c10ccb2b67f92a04815e
+      md5: 741cad93d9d941e661bdef99b59ed000
       size: 6928
     - path: src/config.py
       hash: md5
@@ -292,8 +292,8 @@ stages:
       size: 2468
     - path: src/select_best.py
       hash: md5
-      md5: e6bf07664cc45c538f6e3db6837cf6c6
-      size: 5004
+      md5: b08ec5b98723b33e21854490ab9b4fcd
+      size: 5366
     params:
       params.yaml:
         paths:
@@ -308,9 +308,9 @@ stages:
     outs:
     - path: models/model.pkl
       hash: md5
-      md5: ecf8fbb1a39bb443a0ced4b45efb52ec
+      md5: 39e2102397c95cc0022aa2a486414d87
       size: 143096
     - path: models/model_meta.json
       hash: md5
-      md5: a714877e74b3b11f017643c7d2c5938e
-      size: 2077
+      md5: 4ab151ef52199dc93a55647c36a97b5b
+      size: 2078
