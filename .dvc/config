@@ -4,4 +4,4 @@
 ['remote "local"']
     url = ../dvc-storage
 ['remote "s3"']
-    url = s3://priceoptima/priceoptima
+    url = s3://priceoptima-sagar-2026/priceoptima

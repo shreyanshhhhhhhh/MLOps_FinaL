@@ -77,7 +77,7 @@ Open the `priceoptima-demand` experiment and sort by `test_rmse`. The grid in `p
 `.dvc/config` declares two remotes:
 
 - `local` (default), the directory `dvc-storage` inside the clone. DVC stores paths relative to `.dvc/config`, so the file contains `../dvc-storage`. `dvc push` updates that directory. Commit the new files. CI uses this remote when `AWS_ROLE_ARN` and `AWS_ACCESS_KEY_ID` are both unset, and uses `s3` when either secret is set.
-- `s3`, URL `s3://priceoptima/priceoptima`, ready to become the default.
+- `s3`, URL `s3://priceoptima-sagar-2026/priceoptima` in `eu-north-1`. CI uses it only when an AWS secret is set.
 
 Credentials never go in `.dvc/config`. Use environment variables or `dvc remote modify --local`, which writes `.dvc/config.local` (gitignored). Switching to S3 or Google Drive is written out in `docs/REGISTRY.md`.
 
