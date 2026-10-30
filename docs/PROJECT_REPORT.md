@@ -4,7 +4,7 @@
 
 Laboratory report. The repository is `shreyanshhhhhhhh/MLOps_FinaL`. The demonstration server is an EC2 `t3.micro` in Europe (Stockholm), `eu-north-1`. The model bytes live in the private S3 bucket `priceoptima-sagar-2026`.
 
-The slide deck for the same material is `docs/PriceOptima_Presentation.pptx`.
+The slide deck for the same material is `docs/PriceOptima_Presentation.pptx`. The printable copy is `docs/PriceOptima_Report.pdf`.
 
 ## Aim
 
