@@ -9,6 +9,8 @@ Phase 1 is the training system: one parameter file, a DVC pipeline, and an MLflo
 
 The dataset is the Kaggle [Retail Price Optimization](https://www.kaggle.com/datasets/suddharshan/retail-price-optimization) file `retail_price.csv`: 676 product-months, 30 columns, January 2017 through August 2018. The CSV is not in Git. `data/raw/retail_price.csv.dvc` is the pointer.
 
+The laboratory write-up is `docs/PROJECT_REPORT.md`. The slide deck is `docs/PriceOptima_Presentation.pptx`.
+
 ## Layout
 
 ```
