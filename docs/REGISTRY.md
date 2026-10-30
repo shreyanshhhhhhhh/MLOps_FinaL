@@ -43,7 +43,7 @@ Do not copy `model.pkl` between machines by hand. The hash in `dvc.lock` is what
 
 ## Remotes
 
-The committed default remote is a local directory, `../dvc-storage`, so `dvc push` and `dvc pull` work in the lab without cloud credentials. An S3 remote named `s3` is declared but not selected. Credentials never go in `.dvc/config`. `dvc init` gitignores `.dvc/config.local`, and that is the only place `dvc remote modify --local` writes.
+The committed default remote is the directory `dvc-storage` inside the clone (`.dvc/config` stores `../dvc-storage`). `dvc push` and `dvc pull` work in the lab without cloud credentials, and GitHub Actions uses the same directory when AWS secrets are unset. An S3 remote named `s3` is declared but not selected. Credentials never go in `.dvc/config`. `dvc init` gitignores `.dvc/config.local`, and that is the only place `dvc remote modify --local` writes.
 
 Switch the lab remote to S3:
 
@@ -52,14 +52,14 @@ dvc remote default s3
 # either environment variables (preferred on a shared machine)
 export AWS_ACCESS_KEY_ID="..."
 export AWS_SECRET_ACCESS_KEY="..."
-export AWS_DEFAULT_REGION="ap-south-1"
+export AWS_DEFAULT_REGION="eu-north-1"
 # or a gitignored local config
 dvc remote modify --local s3 access_key_id "..."
 dvc remote modify --local s3 secret_access_key "..."
 dvc push
 ```
 
-The bucket URL in `.dvc/config` is `s3://priceoptima/priceoptima`. Change it if your bucket name differs:
+The bucket URL in `.dvc/config` is `s3://priceoptima-sagar-2026/priceoptima`. Change it if your bucket name differs:
 
 ```bash
 dvc remote modify s3 url s3://<your-bucket>/priceoptima

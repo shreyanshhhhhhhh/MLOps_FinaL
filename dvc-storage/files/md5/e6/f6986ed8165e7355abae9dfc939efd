@@ -1,0 +1,261 @@
+{
+  "experiment_name": "priceoptima-demand",
+  "tracking_uri": "/workspace/mlruns",
+  "git_commit": "a2bb967d77350a0a71eb4ac2204bf0145b1d50ce",
+  "dvc_data_hash": "5454d554903e23994b7cf84dc279577e",
+  "n_runs": 14,
+  "feature_list": [
+    "num__unit_price",
+    "num__freight_price",
+    "num__product_weight_g",
+    "num__product_score",
+    "num__weekday",
+    "num__weekend",
+    "num__holiday",
+    "num__month",
+    "num__year",
+    "num__volume",
+    "num__s",
+    "num__comp_1",
+    "num__comp_2",
+    "num__comp_3",
+    "num__ps1",
+    "num__ps2",
+    "num__ps3",
+    "num__fp1",
+    "num__fp2",
+    "num__fp3",
+    "num__lag_price",
+    "num__product_name_lenght",
+    "num__product_description_lenght",
+    "num__product_photos_qty",
+    "num__comp_mean_price",
+    "num__price_vs_comp",
+    "num__price_change",
+    "num__log_unit_price",
+    "num__log_comp_mean",
+    "cat__product_category_name_bed_bath_table",
+    "cat__product_category_name_computers_accessories",
+    "cat__product_category_name_consoles_games",
+    "cat__product_category_name_cool_stuff",
+    "cat__product_category_name_furniture_decor",
+    "cat__product_category_name_garden_tools",
+    "cat__product_category_name_health_beauty",
+    "cat__product_category_name_perfumery",
+    "cat__product_category_name_watches_gifts"
+  ],
+  "runs": [
+    {
+      "run_id": "229e6c3dc67a4795868e81f42e8bde51",
+      "run_name": "linear_regression|fit_intercept=True",
+      "model_family": "linear_regression",
+      "params": {
+        "fit_intercept": "true"
+      },
+      "train_rmse": 9.267292772200234,
+      "train_mae": 7.338024259649126,
+      "train_r2": 0.32495089407703814,
+      "test_rmse": 10.989963941488735,
+      "test_mae": 9.474829425505039,
+      "test_r2": -0.06305922227017646
+    },
+    {
+      "run_id": "f3168a5507c84c679b019e7f38b0da20",
+      "run_name": "ridge|alpha=0.1",
+      "model_family": "ridge",
+      "params": {
+        "alpha": 0.1
+      },
+      "train_rmse": 9.26758390097211,
+      "train_mae": 7.339863149117978,
+      "train_r2": 0.3249084805461624,
+      "test_rmse": 10.983093075276605,
+      "test_mae": 9.4697567811909,
+      "test_r2": -0.06173039999616159
+    },
+    {
+      "run_id": "edf886c1067b4cca99048da927e60b57",
+      "run_name": "ridge|alpha=1.0",
+      "model_family": "ridge",
+      "params": {
+        "alpha": 1.0
+      },
+      "train_rmse": 9.274462561190662,
+      "train_mae": 7.351748472369412,
+      "train_r2": 0.3239059649865943,
+      "test_rmse": 10.948662042799725,
+      "test_mae": 9.431079106791556,
+      "test_r2": -0.055083971168542245
+    },
+    {
+      "run_id": "d2dcf61f77d44409a549ba170ce4865c",
+      "run_name": "ridge|alpha=10.0",
+      "model_family": "ridge",
+      "params": {
+        "alpha": 10.0
+      },
+      "train_rmse": 9.338708769754128,
+      "train_mae": 7.416022582580995,
+      "train_r2": 0.31450662242938887,
+      "test_rmse": 10.758155839788792,
+      "test_mae": 9.252218350024329,
+      "test_r2": -0.018686584015846774
+    },
+    {
+      "run_id": "4b924fc1e89c41d3af2d4e561f6dce0f",
+      "run_name": "random_forest|n_estimators=100|max_depth=8",
+      "model_family": "random_forest",
+      "params": {
+        "n_estimators": 100,
+        "max_depth": 8
+      },
+      "train_rmse": 3.6549074437540607,
+      "train_mae": 2.795771144682493,
+      "train_r2": 0.895001676123546,
+      "test_rmse": 7.799912735556937,
+      "test_mae": 5.700433343924219,
+      "test_r2": 0.46451857280045505
+    },
+    {
+      "run_id": "429beec3c0cf41f7a238790a2da08f88",
+      "run_name": "random_forest|n_estimators=100|max_depth=16",
+      "model_family": "random_forest",
+      "params": {
+        "n_estimators": 100,
+        "max_depth": 16
+      },
+      "train_rmse": 2.704062024186882,
+      "train_mae": 1.9689898566435844,
+      "train_r2": 0.9425271283389829,
+      "test_rmse": 7.764508919019181,
+      "test_mae": 5.662993975866862,
+      "test_r2": 0.4693686426556529
+    },
+    {
+      "run_id": "52bb811674d945969171f9a7c6352d9e",
+      "run_name": "random_forest|n_estimators=200|max_depth=8",
+      "model_family": "random_forest",
+      "params": {
+        "n_estimators": 200,
+        "max_depth": 8
+      },
+      "train_rmse": 3.6207535475730874,
+      "train_mae": 2.778503705137717,
+      "train_r2": 0.8969548563024636,
+      "test_rmse": 7.813791107738955,
+      "test_mae": 5.695818393421378,
+      "test_r2": 0.4626113150344374
+    },
+    {
+      "run_id": "16d39d7ab0134d2fbd66dfe6847d25bd",
+      "run_name": "random_forest|n_estimators=200|max_depth=16",
+      "model_family": "random_forest",
+      "params": {
+        "n_estimators": 200,
+        "max_depth": 16
+      },
+      "train_rmse": 2.6444058967605315,
+      "train_mae": 1.9439935795161678,
+      "train_r2": 0.9450350504969982,
+      "test_rmse": 7.8047582464458545,
+      "test_mae": 5.663340303286702,
+      "test_r2": 0.4638530558603653
+    },
+    {
+      "run_id": "7c637435969f4f5abd44a9b9ce60b2c4",
+      "run_name": "gradient_boosting|n_estimators=100|learning_rate=0.05|max_depth=3",
+      "model_family": "gradient_boosting",
+      "params": {
+        "n_estimators": 100,
+        "learning_rate": 0.05,
+        "max_depth": 3
+      },
+      "train_rmse": 5.620882986253398,
+      "train_mae": 4.260022830380668,
+      "train_r2": 0.7516645680027942,
+      "test_rmse": 7.534823505559384,
+      "test_mae": 5.433505579023768,
+      "test_r2": 0.5002979946453501
+    },
+    {
+      "run_id": "de013553a3134f27bf261595113bde75",
+      "run_name": "gradient_boosting|n_estimators=100|learning_rate=0.1|max_depth=3",
+      "model_family": "gradient_boosting",
+      "params": {
+        "n_estimators": 100,
+        "learning_rate": 0.1,
+        "max_depth": 3
+      },
+      "train_rmse": 4.0541190237061455,
+      "train_mae": 3.0191926591433216,
+      "train_r2": 0.8708118767386475,
+      "test_rmse": 7.548183272455698,
+      "test_mae": 5.488276671024776,
+      "test_r2": 0.49852441077198584
+    },
+    {
+      "run_id": "22ef78ec78f64aa985c619ccbd93847e",
+      "run_name": "lightgbm|n_estimators=100|learning_rate=0.05|num_leaves=31",
+      "model_family": "lightgbm",
+      "params": {
+        "n_estimators": 100,
+        "learning_rate": 0.05,
+        "num_leaves": 31
+      },
+      "train_rmse": 3.366136595648201,
+      "train_mae": 2.3991566766947843,
+      "train_r2": 0.9109378714799892,
+      "test_rmse": 7.872197324911876,
+      "test_mae": 5.567598719797927,
+      "test_r2": 0.4545475865925336
+    },
+    {
+      "run_id": "a57428387d5440adbc5e71e38085e8bf",
+      "run_name": "lightgbm|n_estimators=100|learning_rate=0.05|num_leaves=63",
+      "model_family": "lightgbm",
+      "params": {
+        "n_estimators": 100,
+        "learning_rate": 0.05,
+        "num_leaves": 63
+      },
+      "train_rmse": 3.366136595648201,
+      "train_mae": 2.3991566766947843,
+      "train_r2": 0.9109378714799892,
+      "test_rmse": 7.872197324911876,
+      "test_mae": 5.567598719797927,
+      "test_r2": 0.4545475865925336
+    },
+    {
+      "run_id": "e682ec5bc860469dbd0325640febc681",
+      "run_name": "lightgbm|n_estimators=100|learning_rate=0.1|num_leaves=31",
+      "model_family": "lightgbm",
+      "params": {
+        "n_estimators": 100,
+        "learning_rate": 0.1,
+        "num_leaves": 31
+      },
+      "train_rmse": 1.9896569885737923,
+      "train_mae": 1.4141040703063712,
+      "train_r2": 0.9688838380759072,
+      "test_rmse": 7.829244531692336,
+      "test_mae": 5.591299524814586,
+      "test_r2": 0.4604836136384306
+    },
+    {
+      "run_id": "e192437b320247ce8fe182538cf4235c",
+      "run_name": "lightgbm|n_estimators=100|learning_rate=0.1|num_leaves=63",
+      "model_family": "lightgbm",
+      "params": {
+        "n_estimators": 100,
+        "learning_rate": 0.1,
+        "num_leaves": 63
+      },
+      "train_rmse": 1.9896569885737923,
+      "train_mae": 1.4141040703063712,
+      "train_r2": 0.9688838380759072,
+      "test_rmse": 7.829244531692336,
+      "test_mae": 5.591299524814586,
+      "test_r2": 0.4604836136384306
+    }
+  ]
+}

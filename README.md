@@ -9,6 +9,8 @@ Phase 1 is the training system: one parameter file, a DVC pipeline, and an MLflo
 
 The dataset is the Kaggle [Retail Price Optimization](https://www.kaggle.com/datasets/suddharshan/retail-price-optimization) file `retail_price.csv`: 676 product-months, 30 columns, January 2017 through August 2018. The CSV is not in Git. `data/raw/retail_price.csv.dvc` is the pointer.
 
+The laboratory write-up is `docs/PROJECT_REPORT.md`. The slide deck is `docs/PriceOptima_Presentation.pptx`.
+
 ## Layout
 
 ```
@@ -29,6 +31,7 @@ docs/SECRETS.md          every GitHub secret and where it is used
 params.yaml              split, seed, features, hyperparameter grid
 dvc.yaml                 preprocess -> features -> train -> evaluate -> select_best
 Dockerfile               multi-stage image, no model binary
+dvc-storage/             committed local DVC remote (no cloud account)
 docker-compose.yml       local run against the DVC remote
 ```
 
@@ -69,14 +72,14 @@ Open experiment `priceoptima-demand`, switch the top toggle to **Model training*
 
 Open the `priceoptima-demand` experiment and sort by `test_rmse`. The grid in `params.yaml` is 14 runs (linear regression, ridge, random forest, gradient boosting, lightgbm). `make exp` appends another 14 because MLflow keeps history.
 
-If `dvc pull` cannot see the remote (a fresh machine whose sibling `dvc-storage` directory is empty), put the Kaggle CSV at `data/raw/retail_price.csv`. The md5 in `data/raw/retail_price.csv.dvc` must match. A public copy of the same file is `https://raw.githubusercontent.com/suddhasheel333/retail-price-optimization/main/data/retail_price.csv`.
+`dvc pull` on a fresh clone reads `dvc-storage/` inside this repository. That directory is the local remote, committed so CI can check the lock without an AWS account. If those files are missing, put the Kaggle CSV at `data/raw/retail_price.csv`. The md5 in `data/raw/retail_price.csv.dvc` must match. A public copy of the same file is `https://raw.githubusercontent.com/suddhasheel333/retail-price-optimization/main/data/retail_price.csv`.
 
 ## DVC remote
 
 `.dvc/config` declares two remotes:
 
-- `local` (default), the directory `dvc-storage` next to the clone. DVC stores paths relative to `.dvc/config`, so the file contains `../../dvc-storage`. This is the default so `dvc push` works in the lab without cloud keys.
-- `s3`, URL `s3://priceoptima/priceoptima`, ready to become the default.
+- `local` (default), the directory `dvc-storage` inside the clone. DVC stores paths relative to `.dvc/config`, so the file contains `../dvc-storage`. `dvc push` updates that directory. Commit the new files. CI uses this remote when `AWS_ROLE_ARN` and `AWS_ACCESS_KEY_ID` are both unset, and uses `s3` when either secret is set.
+- `s3`, URL `s3://priceoptima-sagar-2026/priceoptima` in `eu-north-1`. CI uses it only when an AWS secret is set.
 
 Credentials never go in `.dvc/config`. Use environment variables or `dvc remote modify --local`, which writes `.dvc/config.local` (gitignored). Switching to S3 or Google Drive is written out in `docs/REGISTRY.md`.
 
@@ -253,7 +256,7 @@ The response includes `best_price` inside `[min_price, max_price]`, `expected_de
 | Variable | Role |
 | --- | --- |
 | `DVC_REMOTE` | Remote name from `.dvc/config`. `local` (default) or `s3` |
-| `DVC_STORAGE_DIR` | Host path compose mounts at `/dvc-storage`. Default `../dvc-storage` |
+| `DVC_STORAGE_DIR` | Host path compose mounts at `/dvc-storage`. Default `./dvc-storage` |
 | `DVC_STORAGE_URL` | Optional override of the `local` remote URL inside the container |
 | `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_DEFAULT_REGION` | Used only when `DVC_REMOTE=s3`. Leave unset on an instance with an IAM role. Never copied into the image |
 | `MODEL_VERSION` | Git tag or commit whose `dvc.lock` is pulled. Empty uses the lock baked into the image |
@@ -286,7 +289,7 @@ flowchart LR
 | Diagram box | What implements it |
 | --- | --- |
 | Git push | This repository. CI is `.github/workflows/ci.yml`. It runs on pull requests and pushes |
-| GitHub Actions CI | `lint`, then `test` (pytest report and coverage uploaded), then `pipeline-check` (`scripts/ci_pipeline_check.sh`), then `build` |
+| GitHub Actions CI | `lint`, then `test` (pytest report and coverage uploaded), then `pipeline-check` (`scripts/ci_pipeline_check.sh`), then `build`. `pipeline-check` pulls `dvc-storage/` when no AWS secret is set |
 | GitHub Actions CD | `.github/workflows/cd.yml`. It starts after CI succeeds on `main` or a `v*` tag. The `production` environment can require a reviewer |
 | Docker Hub | `cd.yml` pushes `<user>/priceoptima:<short-sha>`, `:latest`, and `:<semver>` when the commit is tagged `v*`. The ECR and OIDC alternative is commented in that file |
 | EC2 docker pull | `scripts/deploy.sh` on the host. `scripts/ec2_bootstrap.sh` installs Docker and the 1 GB swap |

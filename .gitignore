@@ -30,6 +30,8 @@ data/processed/*
 models/*
 !models/.gitkeep
 
-# Plots and metric files are pipeline outputs.
+# Plots and cached metric files are pipeline outputs.
+# metrics.json is cache:false, so Git is the copy CI checks out.
 metrics/*
 !metrics/.gitkeep
+!metrics/metrics.json

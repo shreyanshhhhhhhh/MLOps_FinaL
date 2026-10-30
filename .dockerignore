@@ -1,5 +1,6 @@
 .git
 .github
+dvc-storage
 .venv
 venv
 mlruns

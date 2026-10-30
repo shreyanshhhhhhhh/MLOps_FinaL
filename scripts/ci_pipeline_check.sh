@@ -1,7 +1,8 @@
 #!/bin/sh
 # Confirm the committed DVC lock matches the workspace.
-# CI sets DVC_REMOTE=s3 and AWS credentials, then pulls before this check.
-# A laptop that already has the local remote can set SKIP_DVC_PULL=1.
+# CI sets DVC_REMOTE=s3 when AWS secrets exist, and DVC_REMOTE=local otherwise.
+# The local remote is the committed dvc-storage directory. A laptop that
+# already has the workspace files can set SKIP_DVC_PULL=1.
 set -eu
 
 cd "$(dirname "$0")/.."

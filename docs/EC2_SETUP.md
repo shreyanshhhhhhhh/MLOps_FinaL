@@ -6,14 +6,14 @@ Do these console steps once. The scripts in this repo do the repeatable part.
 
 ## 1. Push the model to S3 before the first deploy
 
-The committed default remote is the local directory `../../dvc-storage`. CI and EC2 use the remote named `s3` (`s3://priceoptima/priceoptima` in `.dvc/config`). Change that URL if your bucket name is different, then commit the config. Do not commit credentials.
+The committed default remote is `dvc-storage/` in this repository (`.dvc/config` stores `../dvc-storage`). CI uses that directory when no AWS secret is set, and uses the remote named `s3` (`s3://priceoptima-sagar-2026/priceoptima`) when `AWS_ROLE_ARN` or `AWS_ACCESS_KEY_ID` is set. EC2 always uses `s3`. The bucket is in `eu-north-1`. Do not commit credentials.
 
 From a laptop that already has the local cache:
 
 ```bash
 export AWS_ACCESS_KEY_ID="..."
 export AWS_SECRET_ACCESS_KEY="..."
-export AWS_DEFAULT_REGION="ap-south-1"
+export AWS_DEFAULT_REGION="eu-north-1"
 dvc push -r s3
 ```
 
